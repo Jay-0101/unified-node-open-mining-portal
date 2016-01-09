@@ -515,7 +515,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                     var workerShares = r.workerShares;
                     Object.keys(workerShares).forEach(function(worker){
                     orphanMergeCommands.push(['hincrby', coin + ':shares:roundCurrent',
-                        worker, workerShares[worker]]);
+                        +worker, workerShares[worker]]);
                         });  
                 };
 
