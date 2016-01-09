@@ -1,4 +1,3 @@
-//require('newrelic');
 var fs = require('fs');
 var path = require('path');
 var os = require('os');
@@ -93,6 +92,7 @@ if (cluster.isWorker){
 //Read all pool configs from pool_configs and join them with their coin profile
 var buildPoolConfigs = function(){
     var configs = {};
+    var auxconfigs = {};
     var configDir = 'pool_configs/';
 
     var poolConfigFiles = [];
@@ -144,12 +144,28 @@ var buildPoolConfigs = function(){
             }
 
             var auxProfile = JSON.parse(JSON.minify(fs.readFileSync(auxFilePath, {encoding: 'utf8'})));
+            auxProfile.coin = {};
             poolOptions.auxes[i].coin = auxProfile;
             poolOptions.auxes[i].coin.name = poolOptions.auxes[i].coin.name.toLowerCase();
 
+            auxProfile.coin.name = poolOptions.auxes[i].coin.name;
+            for (var option in portalConfig.defaultPoolConfigs){
+                if (!(option in auxProfile)){
+                    var toCloneOption = portalConfig.defaultPoolConfigs[option];
+                    var clonedOption = {};
+                    if (toCloneOption.constructor === Object)
+                        extend(true, clonedOption, toCloneOption);
+                    else
+                        clonedOption = toCloneOption;
+                    auxProfile[option] = clonedOption;
+                }
+            }
+
+            auxconfigs[poolOptions.auxes[i].coin.name] = auxProfile;
+
             if (!(auxProfile.algorithm in algos)){
             logger.warn('Master', auxProfile.name, 'Cannot run a pool for unsupported algorithm "' + auxProfile.algorithm + '"');
-            delete configs[poolOptions.auxcoin.name];
+            delete auxconfigs[poolOptions.auxes[i].coin.name];
             }
         }
 
@@ -194,59 +210,7 @@ var buildPoolConfigs = function(){
             delete configs[poolOptions.coin.name];
         }
     });
-    return configs;
-};
-
-var buildAuxConfigs = function(){
-    var configs = {};
-    var configDir = 'aux_configs/';
-
-    var poolConfigFiles = [];
-
-
-    /* Get filenames of pool config json files that are enabled */
-    fs.readdirSync(configDir).forEach(function(file){
-        if (!fs.existsSync(configDir + file) || path.extname(configDir + file) !== '.json') return;
-        var poolOptions = JSON.parse(JSON.minify(fs.readFileSync(configDir + file, {encoding: 'utf8'})));
-        if (!poolOptions.enabled) return;
-        poolOptions.fileName = file;
-        poolConfigFiles.push(poolOptions);
-    });
-
-    poolConfigFiles.forEach(function(poolOptions){
-
-        poolOptions.coinFileName = poolOptions.coin;
-
-        var poolFilePath = 'coins/' + poolOptions.coinFileName;
-        if (!fs.existsSync(poolFilePath)){
-            logger.warn('Master', poolOptions.coinFileName, 'could not find file: ' + poolFilePath);
-            return;
-        }
-
-        var poolProfile = JSON.parse(JSON.minify(fs.readFileSync(poolFilePath, {encoding: 'utf8'})));
-        poolOptions.coin = poolProfile;
-        poolOptions.coin.name = poolOptions.coin.name.toLowerCase();
-        configs[poolOptions.coin.name] = poolOptions;
-
-        for (var option in portalConfig.defaultPoolConfigs){
-            if (!(option in poolOptions)){
-                var toCloneOption = portalConfig.defaultPoolConfigs[option];
-                var clonedOption = {};
-                if (toCloneOption.constructor === Object)
-                    extend(true, clonedOption, toCloneOption);
-                else
-                    clonedOption = toCloneOption;
-                poolOptions[option] = clonedOption;
-            }
-        }
-
-        if (!(poolProfile.algorithm in algos)){
-            logger.warn('Master', coinProfile.name, 'Cannot run a pool for unsupported algorithm "' + coinProfile.algorithm + '"');
-            delete configs[poolOptions.coin.name];
-        }
-
-    });
-    return configs;
+    return [auxconfigs, configs];
 };
 
 var spawnPoolWorkers = function(){
@@ -459,7 +423,7 @@ var startAuxPaymentProcessor = function(){
     var enabledForAny = false;
     for (var aux in auxConfigs){
         var p = auxConfigs[aux];
-        var enabled = p.enabled && p.paymentProcessing && p.paymentProcessing.enabled;
+        var enabled = p.paymentProcessing.enabled;
         if (enabled){
             enabledForAny = true;
             break;
@@ -523,20 +487,21 @@ var startProfitSwitch = function(){
 
 (function init(){
 
-    poolConfigs = buildPoolConfigs();
+    test = buildPoolConfigs();
 
-    auxConfigs = buildAuxConfigs();
+    poolConfigs = test[1];
 
-    spawnPoolWorkers();
-        setTimeout(function(){
-    startPaymentProcessor();
+    auxConfigs = test[0];
 
-    startAuxPaymentProcessor();
-
-    startWebsite();
-
-    startProfitSwitch();
-
-    startCliListener();
-        }, 10000);
+    async.series([
+    	spawnPoolWorkers(),
+    	startPaymentProcessor(),
+    	startAuxPaymentProcessor(),
+    	startWebsite(),
+        startProfitSwitch(),
+        startCliListener()
+    ], function (err){
+    	if (err)
+    	    logger.error('Master', 'Startup', err);
+    })
 })();

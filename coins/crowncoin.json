@@ -1,0 +1,18 @@
+{
+    // AUX COIN
+   	"name": "crowncoin",
+    "symbol": "CRW",
+    "algorithm": "sha256",
+    "paymentProcessing": {
+        "enabled": true,
+        "paymentInterval": 60,
+        "minimumPayment": 0.01,
+        "daemon": {
+            "host": "127.0.0.1",
+            "port": 9340,
+            "user": "crowncoinrpc",
+            "password": "33HyLXsiz5QYYZrZCfsDC3dv542iqKA7JHShdeFHZQu42zCeNaqdn"
+        }
+    },
+    "address": "16zUi2utv3ZxC4wwCuq5d8tZnDhjikohni"
+}

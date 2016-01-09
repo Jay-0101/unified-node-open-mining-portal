@@ -2,7 +2,6 @@ var redis = require('redis');
 var Stratum = require('merged-pooler');
 
 
-
 /*
 This module deals with handling shares when in internal payment processing mode. It connects to a redis
 database and inserts shares with the database structure of:
@@ -21,6 +20,7 @@ module.exports = function(logger, poolConfig){
     var coin = poolConfig.coin.name;
     var coinSymbol=poolConfig.coin.symbol;
 
+
     var forkId = process.env.forkId;
     var logSystem = 'Pool';
     var logComponent = coin;
@@ -28,8 +28,8 @@ module.exports = function(logger, poolConfig){
 
     var connection = redis.createClient(redisConfig.port, redisConfig.host);
     // redis auth if needed
-     connection.auth(redisConfig.password);
-     connection.select(redisConfig.db);
+    connection.auth(redisConfig.password);
+    connection.select(redisConfig.db);
 
     connection.on('ready', function(){
         logger.debug(logSystem, logComponent, logSubCat, 'Share processing setup with redis (' + redisConfig.host +
@@ -69,19 +69,38 @@ module.exports = function(logger, poolConfig){
     });
 
 
-    this.handleShare = function(isValidShare, isValidBlock, shareData, coin){
+    this.handleAuxBlock = function(isValidBlock, height, hash, tx, diff, coin){
+
+        var redisCommands = [];
+
+        if (isValidBlock){
+            redisCommands.push(['rename', coin + ':shares:roundCurrent', coin + ':shares:round' + height]);
+            redisCommands.push(['sadd', coin + ':blocksPending', [hash, tx, height].join(':')]);
+            redisCommands.push(['hincrby', coin + ':stats', 'validBlocks', 1]);
+        }
+        else if (hash){
+            redisCommands.push(['hincrby', coin + ':stats', 'invalidBlocks', 1]);
+        }
+
+        connection.multi(redisCommands).exec(function(err, replies){
+            if (err)
+                logger.error(logSystem, logComponent, logSubCat, 'Error with share processor multi ' + JSON.stringify(err));
+        });
+
+    };
+
+    this.handleShare = function(isValidShare, isValidBlock, shareData, coin, aux){
 
         var redisCommands = [];
         shareData.worker = shareData.worker.trim();
 
         if (isValidShare){
-            //add currentShift shares
             redisCommands.push(['hincrbyfloat', coin + ':shares:roundCurrent', shareData.worker, shareData.difficulty]);
             redisCommands.push(['hincrby', coin + ':stats', 'validShares', 1]);
  
             redisCommands.push(['hincrbyfloat', 'Pool_Stats:CurrentShift:stats', 'validShares', shareData.difficulty]); //addition for multipool round total share state
             redisCommands.push(['hincrbyfloat', 'Pool_Stats:CurrentShift:stats', shareData.worker, shareData.difficulty]); //addition for multipool round worker share state
- 
+
         }
         else{
             redisCommands.push(['hincrby', coin + ':stats', 'invalidShares', 1]);
@@ -91,12 +110,14 @@ module.exports = function(logger, poolConfig){
            doesn't overwrite an existing entry, and timestamp as score lets us query shares from last X minutes to
            generate hashrate for each worker and pool. */
         var dateNow = Date.now();
-        var hashrateData = [ isValidShare ? shareData.difficulty : -shareData.difficulty, shareData.worker, dateNow];
-        redisCommands.push(['zadd', coin + ':hashrate', dateNow / 1000 | 0, hashrateData.join(':')]);
+        if (aux != true){
+            var hashrateData = [ isValidShare ? shareData.difficulty : -shareData.difficulty, shareData.worker, dateNow];
+            redisCommands.push(['zadd', coin + ':hashrate', dateNow / 1000 | 0, hashrateData.join(':')]);
+        }
 
         if (isValidBlock){
             redisCommands.push(['rename', coin + ':shares:roundCurrent', coin + ':shares:round' + shareData.height]);
-            redisCommands.push(['sadd', coin + ':blocksPending', [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, shareData.time,shareData.blockReward].join(':')]);
+            redisCommands.push(['sadd', coin + ':blocksPending', [shareData.blockHash, shareData.txHash, shareData.height].join(':')]);
             redisCommands.push(['hset', 'Allblocks', coinSymbol + "-" + shareData.height, [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, shareData.time,shareData.blockReward].join(':')]); //used for block stat
             redisCommands.push(['hincrby', coin + ':stats', 'validBlocks', 1]);
         }

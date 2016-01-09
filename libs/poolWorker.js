@@ -146,35 +146,36 @@ module.exports = function(logger){
 
             var shareProcessor = new ShareProcessor(logger, poolOptions);
 
-	handlers.auth = function(port, workerName, password, authCallback){
-               if (poolOptions.validateWorkerUsername !== true)
+	        handlers.auth = function(port, workerName, password, authCallback){
+                if (poolOptions.validateWorkerUsername !== true)
                    authCallback(true);
-               else {
-                   if (workerName.length === 40) {
-                       try {
+                else {
+                    if (workerName.length === 40) {
+                        try {
                            new Buffer(workerName, 'hex');
                            authCallback(true);
-                       }
-                       catch (e) {
-                           authCallback(false);
-                       }
-                   }
-                   else {
+                        }
+                        catch (e) {
+                            authCallback(false);
+                        }
+                    } else {
+                        workerName = workerName.replace(/([_.!~*'()].*)/g, ''); // strip any extra strings from worker name.
+                        pool.daemon.cmd('validateaddress', [workerName], function (results) {
+                            var isValid = results.filter(function (r) {
+                                return r.response.isvalid
+                            }).length > 0;
+                            authCallback(isValid);
+                        });
+                    }
+		        }
+   	        };
 
-                          workerName = workerName.replace(/([_.!~*'()].*)/g, ''); // strip any extra strings from worker name.
+            handlers.share = function(isValidShare, isValidBlock, data, coin, aux){
+                shareProcessor.handleShare(isValidShare, isValidBlock, data, coin, aux);
+            };
 
-                   pool.daemon.cmd('validateaddress', [workerName], function (results) {
-                           var isValid = results.filter(function (r) {
-                               return r.response.isvalid
-                           }).length > 0;
-                           authCallback(isValid);
-                       });
-                   }
-		}
-   	 };
-
-            handlers.share = function(isValidShare, isValidBlock, data, coin){
-                shareProcessor.handleShare(isValidShare, isValidBlock, data, coin);
+            handlers.auxblock = function(isValidBlock, height, hash, tx, diff, coin){
+                shareProcessor.handleAuxBlock(isValidBlock, height, hash, tx, diff, coin);
             };
         }
 
@@ -199,7 +200,7 @@ module.exports = function(logger){
             var shareData = JSON.stringify(data);
 
             if (data.blockHash && !isValidBlock)
-                logger.debug(logSystem, logComponent, logSubCat, 'We thought a block was found but it was rejected by the daemon, share data: ' + shareData);
+                logger.warning(logSystem, logComponent, logSubCat, 'We thought a block was found but it was rejected by the daemon, share data: ' + shareData);
 
             else if (isValidBlock)
                 logger.info(logSystem, logComponent, logSubCat, 'Block found: ' + data.blockHash);
@@ -208,15 +209,21 @@ module.exports = function(logger){
                 logger.debug(logSystem, logComponent, logSubCat, 'Share accepted at diff ' + data.difficulty + '/' + data.shareDiff + ' by ' + data.worker + ' [' + data.ip + ']' );
 
             else if (!isValidShare)
-                logger.fatal(logSystem, logComponent, logSubCat, 'Share rejected: ' + shareData);
+                logger.debug(logSystem, logComponent, logSubCat, 'Share rejected: ' + shareData);
 
-            handlers.share(isValidShare, isValidBlock, data, poolOptions.coin.name)
+            handlers.share(isValidShare, isValidBlock, data, poolOptions.coin.name, false)
             //loop through auxcoins
-            for(var i = 0; i < myAuxes.length; i++) {
-                coin = myAuxes[i].name;
-                handlers.share(isValidShare, isValidBlock, data, coin);
-            }
+	        for(var i = 0; i < myAuxes.length; i++) {
+		        coin = myAuxes[i].name;
+		        handlers.share(isValidShare, false, data, coin, true);
+	        }
 
+        }).on('auxblock', function(symbol, height, hash, tx, amount, diff, mnr){
+        	for(var i = 0; i < myAuxes.length; i++) {
+        		if (myAuxes[i].symbol == symbol)
+		            coin = myAuxes[i].name;
+	        }
+        	handlers.auxblock(true, height, hash, tx, diff, coin);
         }).on('difficultyUpdate', function(workerName, diff){
             logger.debug(logSystem, logComponent, logSubCat, 'Difficulty update to diff ' + diff + ' workerName=' + JSON.stringify(workerName));
             handlers.diff(workerName, diff);
@@ -310,7 +317,7 @@ module.exports = function(logger){
                             + socket.remoteAddress + ' on '
                             + port + ' routing to ' + currentPool);
                         
-                            if (pools[currentPool].getStratumServer() != null)
+                           if (pools[currentPool].getStratumServer() != null)
                                 try {pools[currentPool].getStratumServer().handleNewClient(socket);}
                                     catch(err) {}
                             else
