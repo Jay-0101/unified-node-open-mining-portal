@@ -442,46 +442,45 @@ function SetupForPool(logger, poolOptions, setupFinished){
                     });
                 };
                 var trySend = function (payee, amount, withholdPercent, callback2) {
-                	        var payout = amount - (amount * withholdPercent);
-                	        var worker = workers[payee];
-                	        daemon.cmd('sendtoaddress', [payee, payout], function (result) {
-                                //Check if payments failed because wallet doesn't have enough coins to pay for tx fees
-                                if (withholdPercent >= 0.10) {
-                                    logger.error(logSystem, logComponent, 'Trying to send less than '
-                                        + (100 - (withholdPercent * 100)) + '% of the miners reward. Will wait until more funds are available');
-                                    if (worker.sent > 0){
-                                        worker.balanceChange = 0;
-                                        worker.sent = 0;
-                                    }
-                                    callback2();
-                                }
-                                else if (result.error && result.error.message === "Insufficient funds" && withholdPercent < 0.10) {
-                                    var higherPercent = withholdPercent + 0.01;
-                                    logger.error(logSystem, logComponent, 'Not enough funds to cover the tx fees for sending out payments, decreasing rewards by '
-                                        + (higherPercent * 100) + '% and retrying');
-                                    trySend(payee, amount, higherPercent, callback2);
-                                }
-                                else if (result.error) {
-                                    logger.error(logSystem, logComponent, 'Error trying to send payments with RPC sendtoaddress ' + JSON.stringify(result.error));
-                                    if (worker.sent > 0){
-                                        worker.balanceChange = 0;
-                                        worker.sent = 0;
-                                    }
-                                    callback2(true);
-                                }
-                                else {
-                                    logger.info(logSystem, logComponent, 'Sent out ' + amount + ' coins' + ' to ' + payout);
-                                    if (withholdPercent > 0) {
-                                        logger.error(logSystem, logComponent, 'Had to withhold ' + (withholdPercent * 100)
-                                            + '% of reward from miners to cover transaction fees. '
-                                            + 'Fund pool wallet with coins to prevent this from happening');
-                                    }
-                                    callback2();
-                                }
-                            }, true, true);
+                    var payout = amount - (amount * withholdPercent);
+                    var worker = workers[payee];
+                    daemon.cmd('sendtoaddress', [payee, payout], function (result) {
+                        //Check if payments failed because wallet doesn't have enough coins to pay for tx fees
+                        if (withholdPercent >= 0.10) {
+                            logger.error(logSystem, logComponent, 'Trying to send less than '
+                                + (100 - (withholdPercent * 100)) + '% of the miners reward. Will wait until more funds are available');
+                            if (worker.sent > 0){
+                                worker.balanceChange = 0;
+                                worker.sent = 0;
+                            }
+                            callback2();
+                        }
+                        else if (result.error && result.error.message === "Insufficient funds" && withholdPercent < 0.10) {
+                            var higherPercent = withholdPercent + 0.01;
+                            logger.error(logSystem, logComponent, 'Not enough funds to cover the tx fees for sending out payments, decreasing rewards by '
+                                + (higherPercent * 100) + '% and retrying');
+                            trySend(payee, amount, higherPercent, callback2);
+                        }
+                        else if (result.error) {
+                            logger.error(logSystem, logComponent, 'Error trying to send payments with RPC sendtoaddress ' + JSON.stringify(result.error));
+                            if (worker.sent > 0){
+                                worker.balanceChange = 0;
+                                worker.sent = 0;
+                            }
+                            callback2(true);
+                        }
+                        else {
+                            logger.info(logSystem, logComponent, 'Sent out ' + amount + ' coins' + ' to ' + payout);
+                            if (withholdPercent > 0) {
+                                logger.error(logSystem, logComponent, 'Had to withhold ' + (withholdPercent * 100)
+                                    + '% of reward from miners to cover transaction fees. '
+                                    + 'Fund pool wallet with coins to prevent this from happening');
+                            }
+                            callback2();
+                        }
+                    }, true, true);
                 };
                 validateAddress(0);
-
             },
             function(workers, rounds, callback){
 
