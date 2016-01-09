@@ -470,7 +470,7 @@ function SetupForPool(logger, poolOptions, setupFinished){
                             callback2(true);
                         }
                         else {
-                            logger.info(logSystem, logComponent, 'Sent out ' + amount + ' coins' + ' to ' + payout);
+                            logger.info(logSystem, logComponent, 'Sent out ' + amount + ' coins' + ' to ' + payee);
                             if (withholdPercent > 0) {
                                 logger.error(logSystem, logComponent, 'Had to withhold ' + (withholdPercent * 100)
                                     + '% of reward from miners to cover transaction fees. '
