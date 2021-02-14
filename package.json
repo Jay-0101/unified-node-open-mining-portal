@@ -36,7 +36,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/UNOMP/unified-node-open-mining-portal.git"
+        "url": "https://github.com/Jay-0101/unified-node-open-mining-portal"
     },
     "dependencies": {
         "merged-pooler": "https://github.com/Jay-0101/node-merged-pool1",
