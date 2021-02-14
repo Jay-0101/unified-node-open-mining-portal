@@ -58,7 +58,6 @@
         "node-schedule": "*",
         "node-poloniex": "git://github.com/sigwo/poloniex.js",
         "node-bittrex": "git://github.com/n0mad01/node.bittrex.api",
-        "node-cryptsy": "git://github.com/sigwo/node-cryptsy",
         "node-cryptopia": "git://github.com/sigwo/node-cryptopia",
         "nonce": "*",
         "bignum": "0.13.1",
