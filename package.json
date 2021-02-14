@@ -61,7 +61,7 @@
         "node-cryptsy": "git://github.com/sigwo/node-cryptsy",
         "node-cryptopia": "git://github.com/sigwo/node-cryptopia",
         "nonce": "*",
-        "bignum": "*",
+        "bignum": "0.13.1",
         "extend": "*"
     },
     "engines": {
