@@ -36,10 +36,10 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/Jay-0101/unified-node-open-mining-portal"
+        "url": "https://github.com/Infernoman/unified-node-open-mining-portal.git"
     },
     "dependencies": {
-        "merged-pooler": "https://github.com/Jay-0101/node-merged-pool1",
+        "merged-pooler": "git://github.com/UNOMP/node-merged-pool",
         "dateformat": "*",
 	"log4js": "*",
 	"bitcoin": "*",
@@ -56,11 +56,13 @@
         "node-watch": "*",
         "request": "*",
         "node-schedule": "*",
+        "node-poloniex": "git://github.com/sigwo/poloniex.js",
+        "node-bittrex": "git://github.com/n0mad01/node.bittrex.api",
         "nonce": "*",
-        "bignum": "0.13.1",
+        "bignum": "*",
         "extend": "*"
     },
     "engines": {
-        "node": ">=12.0.0"
+        "node": ">=0.10"
     }
 }
