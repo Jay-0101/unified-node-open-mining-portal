@@ -36,7 +36,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/Infernoman/unified-node-open-mining-portal.git"
+        "url": "https://github.com/Jay-0101/unified-node-open-mining-portal1.git"
     },
     "dependencies": {
         "node-merged-pooler": "https://github.com/Jay-0101/node-merged-pool1",
