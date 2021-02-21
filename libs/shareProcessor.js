@@ -117,7 +117,7 @@ module.exports = function(logger, poolConfig){
 
         if (isValidBlock){
             redisCommands.push(['rename', coin + ':shares:roundCurrent', coin + ':shares:round' + shareData.height]);
-            redisCommands.push(['sadd', coin + ':blocksPending', [shareData.blockHash, shareData.txHash, shareData.height].join(':')]);
+            redisCommands.push(['sadd', coin + ':blocksPending', [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, shareData.time,shareData.blockReward].join(':')]);
             redisCommands.push(['hset', 'Allblocks', coinSymbol + "-" + shareData.height, [shareData.blockHash, shareData.txHash, shareData.height, shareData.worker, shareData.time,shareData.blockReward].join(':')]); //used for block stat
             redisCommands.push(['hincrby', coin + ':stats', 'validBlocks', 1]);
         }
